@@ -41,11 +41,17 @@ last_alien_shot = pygame.time.get_ticks()
 COUNTDOWN = 3
 last_count = pygame.time.get_ticks()
 GAMEOVER = 0 #0 means game is running, 1 means player won, -1 means player lost
+SCORE = 0
+HIGHSCORE = 0
+alien_bullet_speed = 2
+num_alien_bullets = 5
+alien_move_speed = 1
 
 # colours
 red = (255, 0, 0)
 green = (0, 255, 0)
 white = (255, 255, 255)
+blue = (0, 0, 255)
 
 # background image
 bg = pygame.image.load('C:\\Users\\break\\OneDrive\\Home\\Programming\\Girls Who Code\\SLEEPOVER\\Space Shooter\\Images\\background.jpg')
@@ -117,6 +123,8 @@ class Bullets(pygame.sprite.Sprite):
     self.rect.center = [x, y]
 
   def update(self):
+    global SCORE
+
     self.rect.y -= 5
     if self.rect.bottom < 0:
       self.kill()
@@ -125,10 +133,13 @@ class Bullets(pygame.sprite.Sprite):
       explosion_fx.play()
       explosion = Explosion(self.rect.centerx, self.rect.centery, 2)
       explosion_group.add(explosion)
+      SCORE += 1
 
 # Aliens class
 class Aliens(pygame.sprite.Sprite):
   def __init__(self, x, y):
+    global alien_move_speed
+
     pygame.sprite.Sprite.__init__(self)
     self.image = pygame.image.load('C:\\Users\\break\\OneDrive\\Home\\Programming\\Girls Who Code\\SLEEPOVER\\Space Shooter\\Images\\alien' + str(random.randint(1,4)) + '.png')
     self.rect = self.image.get_rect()
@@ -137,8 +148,8 @@ class Aliens(pygame.sprite.Sprite):
     self.move_direction = 1
 
   def update(self):
-    self.rect.x += self.move_direction
-    self.move_counter += 1
+    self.rect.x += self.move_direction * alien_move_speed
+    self.move_counter += alien_move_speed
     if abs(self.move_counter) > 50:
       self.move_direction *= -1
       self.move_counter *= self.move_direction
@@ -155,7 +166,9 @@ class Alien_Bullets(pygame.sprite.Sprite):
     self.rect.center = [x, y]
 
   def update(self):
-    self.rect.y += 2
+    global SCORE, alien_bullet_speed
+
+    self.rect.y += alien_bullet_speed
     if self.rect.top > screen_height:
       self.kill()
     if pygame.sprite.spritecollide(self, spaceship_group, False, pygame.sprite.collide_mask):
@@ -165,6 +178,7 @@ class Alien_Bullets(pygame.sprite.Sprite):
       spaceship.health_remaining -= 1
       explosion = Explosion(self.rect.centerx, self.rect.centery, 1)
       explosion_group.add(explosion)
+      SCORE -= 2
 
 
 # Explosion Class
@@ -214,14 +228,72 @@ explosion_group = pygame.sprite.Group()
 def create_aliens():
   for row in range(ROWS):
     for item in range(COLS):
-      alien = Aliens(70 + item * 90, 60 + row * 70)
+      alien = Aliens(70 + item * 90, 80 + row * 70)
       alien_group.add(alien)
 
-create_aliens()
 
-# player
-spaceship = Spaceship(int(screen_width / 2), screen_height - 100, 3)
-spaceship_group.add(spaceship)
+def reset_game():
+  # Return everything to the original so the player can try again.  
+  global SCORE, COUNTDOWN, GAMEOVER, HIGHSCORE, last_alien_shot, alien_bullet_speed, num_alien_bullets, alien_cooldown, alien_move_speed, last_count, spaceship, spaceship_group
+
+  if SCORE > HIGHSCORE:
+    HIGHSCORE = SCORE
+
+  SCORE = 0
+  COUNTDOWN = 3
+  GAMEOVER = 0
+  alien_bullet_speed = 2
+  num_alien_bullets = 5
+  alien_cooldown = 1000
+  alien_move_speed = 1
+  last_alien_shot = pygame.time.get_ticks()
+  last_count = pygame.time.get_ticks()
+
+  # wipe out all existing sprites
+  bullet_group.empty()
+  alien_group.empty()
+  alien_bullet_group.empty()
+  explosion_group.empty()
+
+  # repopulate aliens
+  create_aliens()
+
+  # create a fresh spaceship
+  spaceship = Spaceship(int(screen_width / 2), screen_height - 100, 3)
+  spaceship_group.empty()
+  spaceship_group.add(spaceship)
+
+
+# start the first game
+reset_game()
+
+
+# Continue Game
+def continue_game():
+  global COUNTDOWN, GAMEOVER, last_alien_shot, alien_bullet_speed, num_alien_bullets, alien_cooldown, alien_move_speed, last_count, spaceship, spaceship_group
+
+  COUNTDOWN = 3
+  GAMEOVER = 0
+  alien_bullet_speed += 2
+  num_alien_bullets += 2
+  alien_cooldown -= 200
+  alien_move_speed += 1
+  last_alien_shot = pygame.time.get_ticks()
+  last_count = pygame.time.get_ticks()
+
+  # wipe out all existing sprites
+  bullet_group.empty()
+  alien_group.empty()
+  alien_bullet_group.empty()
+  explosion_group.empty()
+
+  # repopulate aliens
+  create_aliens()
+
+  # create a fresh spaceship
+  spaceship = Spaceship(int(screen_width / 2), screen_height - 100, 3)
+  spaceship_group.empty()
+  spaceship_group.add(spaceship)
 
 run = True
 while run:
@@ -229,6 +301,8 @@ while run:
   clock.tick(fps)
   # draw background
   draw_bg()
+  draw_text(f'Score: {SCORE}', font30, white, 10, 10)
+  draw_text(f'High Score: {HIGHSCORE}', font30, white, 10, 30)
 
   if COUNTDOWN == 0:
 
@@ -236,7 +310,7 @@ while run:
     # record current time
     time_now = pygame.time.get_ticks()
     # shoot
-    if time_now - last_alien_shot > alien_cooldown and len(alien_bullet_group) < 5 and len(alien_group) > 0:
+    if time_now - last_alien_shot > alien_cooldown and len(alien_bullet_group) < num_alien_bullets and len(alien_group) > 0:
       attacking_alien = random.choice(alien_group.sprites())
       alien_bullet = Alien_Bullets(attacking_alien.rect.centerx, attacking_alien.rect.bottom)
       alien_bullet_group.add(alien_bullet)
@@ -244,7 +318,7 @@ while run:
 
     # check if aliens are killed
     if len(alien_group) == 0:
-      GAMEOVER = 1
+      continue_game()
     
     if GAMEOVER == 0:
 
@@ -262,6 +336,9 @@ while run:
       elif GAMEOVER == 1:  
         draw_text('YOU WON!!!', font40, white, int(screen_width / 2 - 85), int(screen_height / 2 + 50))
 
+      # restart
+      draw_text('Press R to RESTART', font30, white, int(screen_width / 2 - 110), int(screen_height / 2 + 90))
+
   if COUNTDOWN > 0:
     draw_text('GET READY!', font40, white, int(screen_width / 2 - 85), int(screen_height / 2 + 50))
     draw_text(str(COUNTDOWN), font40, white, int(screen_width / 2 - 8), int(screen_height / 2 + 90))
@@ -270,7 +347,7 @@ while run:
       COUNTDOWN -= 1
       last_count = count_timer
 
-  # update explosion group  
+  # update explosion group
   explosion_group.update()
 
   # draw sprite groups
@@ -284,6 +361,10 @@ while run:
   for event in pygame.event.get():
     if event.type == pygame.QUIT:
       run = False
+    elif event.type == pygame.KEYDOWN:
+      # restart when game over and player presses R
+      if event.key == pygame.K_r and GAMEOVER != 0:
+        reset_game()
 
   pygame.display.update()
 
