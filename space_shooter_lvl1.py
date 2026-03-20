@@ -47,6 +47,14 @@ alien_bullet_speed = 2
 num_alien_bullets = 5
 alien_move_speed = 1
 GAME_PAUSED = False
+ship_speed = 8
+ship_cooldown = 500 # milliseconds
+tokens = 0
+
+# Shop variables
+shop_msg_text = ""
+shop_msg_timer = 0
+bought = False
 
 # screen shake variables
 shake_duration = 500 # milliseconds
@@ -86,25 +94,21 @@ class Spaceship(pygame.sprite.Sprite):
     self.last_shot = pygame.time.get_ticks()
 
   def update(self, offset_x=0, offset_y=0):
-    global shake_intensity, shake_start, shake_duration
-    # movement speed
-    speed = 8
-    # cooldown time
-    cooldown = 500  #milliseconds
+    global shake_intensity, shake_start, shake_duration, ship_speed, ship_cooldown
     GAMEOVER = 0
 
     # key press to move
     key = pygame.key.get_pressed()
     if key[pygame.K_LEFT] and self.rect.left > 0:
-      self.rect.x -= speed
+      self.rect.x -= ship_speed
     if key[pygame.K_RIGHT] and self.rect.right < screen_width:
-      self.rect.x += speed
+      self.rect.x += ship_speed
 
     # record current time
     time_now = pygame.time.get_ticks()
 
     # key press to shoot
-    if key[pygame.K_SPACE] and time_now - self.last_shot > cooldown:
+    if key[pygame.K_SPACE] and time_now - self.last_shot > ship_cooldown:
       laser_fx.play()
       bullet = Bullets(self.rect.centerx, self.rect.top)
       bullet_group.add(bullet)
@@ -137,7 +141,7 @@ class Bullets(pygame.sprite.Sprite):
     self.rect.center = [x, y]
 
   def update(self):
-    global SCORE, shake_start, shake_intensity
+    global SCORE, shake_start, shake_intensity, tokens
 
     self.rect.y -= 5
     if self.rect.bottom < 0:
@@ -148,6 +152,7 @@ class Bullets(pygame.sprite.Sprite):
       explosion = Explosion(self.rect.centerx, self.rect.centery, 2)
       explosion_group.add(explosion)
       SCORE += 1
+      tokens += 10
       shake_intensity = 2
       shake_start = pygame.time.get_ticks() # trigger screen shake
 
@@ -254,7 +259,7 @@ def create_aliens():
 
 def reset_game():
   # Return everything to the original so the player can try again.  
-  global SCORE, COUNTDOWN, GAMEOVER, HIGHSCORE, last_alien_shot, alien_bullet_speed, num_alien_bullets, alien_cooldown, alien_move_speed, last_count, spaceship, spaceship_group
+  global SCORE, COUNTDOWN, GAMEOVER, HIGHSCORE, last_alien_shot, alien_bullet_speed, num_alien_bullets, alien_cooldown, alien_move_speed, last_count, spaceship, spaceship_group, ship_speed, ship_cooldown, tokens
 
   if SCORE > HIGHSCORE:
     HIGHSCORE = SCORE
@@ -262,6 +267,9 @@ def reset_game():
   SCORE = 0
   COUNTDOWN = 3
   GAMEOVER = 0
+  tokens = 0
+  ship_speed = 8
+  ship_cooldown = 500
   alien_bullet_speed = 2
   num_alien_bullets = 5
   alien_cooldown = 1000
@@ -354,7 +362,6 @@ back_button = Button(140, 125, back_img, 1)
 bullet_speed_button = Button(253, 125, bullet_speed_img, 1)
 ship_speed_button = Button(366, 125, ship_speed_img, 1)
 
-
 run = True
 while run:
 
@@ -373,6 +380,7 @@ while run:
   draw_bg(offset_x, offset_y)
   draw_text(f'Score: {SCORE}', font30, white, 10, 10, offset_x, offset_y)
   draw_text(f'High Score: {HIGHSCORE}', font30, white, 10, 30, offset_x, offset_y)
+  draw_text(f'Tokens: {tokens}', font30, white, 350, 10, offset_x, offset_y)
 
   if COUNTDOWN == 0 and GAME_PAUSED == False:
 
@@ -400,8 +408,6 @@ while run:
       alien_group.update()
       alien_bullet_group.update()
 
-
-
     else:
       if GAMEOVER == -1:
         draw_text('YOU LOST.', font40, white, int(screen_width / 2 - 85), int(screen_height / 2 + 50), offset_x, offset_y)
@@ -423,10 +429,36 @@ while run:
     # create shop
     if back_button.draw(screen):
       GAME_PAUSED = False
+
     if bullet_speed_button.draw(screen):
-      pass
+      if tokens >= 150:  
+        ship_cooldown -= 100 # milliseconds
+        tokens -= 150
+        shop_msg_text = 'UPGRADE BOUGHT!'
+        shop_msg_timer = pygame.time.get_ticks() + 2000
+        bought = True
+      else:
+        shop_msg_text = 'NOT ENOUGH TOKENS! COST: 150'
+        shop_msg_timer = pygame.time.get_ticks() + 2000
+        bought = False
+
     if ship_speed_button.draw(screen):
-      pass
+      if tokens >= 200:  
+        ship_speed += 2
+        tokens -= 200
+        shop_msg_text = 'UPGRADE BOUGHT!'
+        shop_msg_timer = pygame.time.get_ticks() + 2000
+        bought = True
+      else:
+        shop_msg_text = 'NOT ENOUGH TOKENS! COST: 200'
+        shop_msg_timer = pygame.time.get_ticks() + 2000
+        bought = False
+
+    if pygame.time.get_ticks() < shop_msg_timer:
+      if bought == False:
+        draw_text(shop_msg_text, font30, red, 80, 90)
+      elif bought:
+        draw_text(shop_msg_text, font30, green, 145, 90)
 
   else:
     # update explosion group
