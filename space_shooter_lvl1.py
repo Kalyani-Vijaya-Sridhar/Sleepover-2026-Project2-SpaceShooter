@@ -46,6 +46,12 @@ HIGHSCORE = 0
 alien_bullet_speed = 2
 num_alien_bullets = 5
 alien_move_speed = 1
+GAME_PAUSED = False
+
+# screen shake variables
+shake_duration = 500 # milliseconds
+shake_intensity = 0
+shake_start = 0
 
 # colours
 red = (255, 0, 0)
@@ -56,13 +62,17 @@ blue = (0, 0, 255)
 # background image
 bg = pygame.image.load('C:\\Users\\break\\OneDrive\\Home\\Programming\\Girls Who Code\\SLEEPOVER\\Space Shooter\\Images\\background.jpg')
 
-def draw_bg():
-  screen.blit(bg, (0, 0))
+def draw_bg(offset_x=0, offset_y=0):
+  screen.blit(bg, (offset_x, offset_y))
 
 # function for text
-def draw_text(text, font, text_col, x, y):
+def draw_text(text, font, text_col, x, y, offset_x=0, offset_y=0):
   img = font.render(text, True, text_col)
-  screen.blit(img, (x,y))
+  screen.blit(img, (x + offset_x, y + offset_y))
+
+def draw_sprite_group(group, offset_x=0, offset_y=0):
+  for sprite in group:
+    screen.blit(sprite.image, (sprite.rect.x + offset_x, sprite.rect.y + offset_y))
 
 # Spaceship class
 class Spaceship(pygame.sprite.Sprite):
@@ -75,7 +85,8 @@ class Spaceship(pygame.sprite.Sprite):
     self.health_remaining = health
     self.last_shot = pygame.time.get_ticks()
 
-  def update(self):
+  def update(self, offset_x=0, offset_y=0):
+    global shake_intensity, shake_start, shake_duration
     # movement speed
     speed = 8
     # cooldown time
@@ -103,12 +114,15 @@ class Spaceship(pygame.sprite.Sprite):
     self.mask = pygame.mask.from_surface(self.image)
 
     # health bar
-    pygame.draw.rect(screen, red, (self.rect.x, (self.rect.bottom + 10), self.rect.width, 10))
+    pygame.draw.rect(screen, red, (self.rect.x + offset_x, (self.rect.bottom + 10) + offset_y, self.rect.width, 10))
     if self.health_remaining > 0:
-      pygame.draw.rect(screen, green, (self.rect.x, (self.rect.bottom + 10), int(self.rect.width * (self.health_remaining / self.health_start)), 10))
+      pygame.draw.rect(screen, green, (self.rect.x + offset_x, (self.rect.bottom + 10) + offset_y, int(self.rect.width * (self.health_remaining / self.health_start)), 10))
     elif self.health_remaining <= 0:
       explosion = Explosion(self.rect.centerx, self.rect.centery, 3)
       explosion_group.add(explosion)
+      shake_duration = 1000
+      shake_intensity = 10
+      shake_start = pygame.time.get_ticks() # trigger screen shake
       self.kill()
       GAMEOVER = -1
     return GAMEOVER
@@ -123,7 +137,7 @@ class Bullets(pygame.sprite.Sprite):
     self.rect.center = [x, y]
 
   def update(self):
-    global SCORE
+    global SCORE, shake_start, shake_intensity
 
     self.rect.y -= 5
     if self.rect.bottom < 0:
@@ -134,6 +148,10 @@ class Bullets(pygame.sprite.Sprite):
       explosion = Explosion(self.rect.centerx, self.rect.centery, 2)
       explosion_group.add(explosion)
       SCORE += 1
+      shake_intensity = 2
+      shake_start = pygame.time.get_ticks() # trigger screen shake
+
+# Shake the Screen
 
 # Aliens class
 class Aliens(pygame.sprite.Sprite):
@@ -166,7 +184,7 @@ class Alien_Bullets(pygame.sprite.Sprite):
     self.rect.center = [x, y]
 
   def update(self):
-    global SCORE, alien_bullet_speed
+    global SCORE, alien_bullet_speed, shake_intensity, shake_start
 
     self.rect.y += alien_bullet_speed
     if self.rect.top > screen_height:
@@ -178,6 +196,8 @@ class Alien_Bullets(pygame.sprite.Sprite):
       spaceship.health_remaining -= 1
       explosion = Explosion(self.rect.centerx, self.rect.centery, 1)
       explosion_group.add(explosion)
+      shake_intensity = 4
+      shake_start = pygame.time.get_ticks() # trigger screen shake
       SCORE -= 2
 
 
@@ -295,16 +315,66 @@ def continue_game():
   spaceship_group.empty()
   spaceship_group.add(spaceship)
 
+# Button Class
+class Button():
+  def __init__(self, y, x, image, scale):
+    width = image.get_width()
+    height = image.get_height()
+    self.image = pygame.transform.scale(image, (int(width * scale), int(height * scale)))
+    self.rect = self.image.get_rect()
+    self.rect.topleft = (x, y)
+    self.clicked = False
+
+  def draw(self, surface):
+    action = False
+    # mouse position
+    pos = pygame.mouse.get_pos()
+
+    # mouseover and clicked conditions
+    if self.rect.collidepoint(pos):
+      if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False:
+        self.clicked = True
+        action = True
+    
+    if pygame.mouse.get_pressed()[0] == 0:
+      self.clicked = False
+    
+    # draw button on screen
+    surface.blit(self.image, (self.rect.x, self.rect.y))
+
+    return action
+
+# button images
+back_img = pygame.image.load('C:\\Users\\break\\OneDrive\\Home\\Programming\\Girls Who Code\\SLEEPOVER\\Space Shooter\\Images\\BACK.png').convert_alpha()
+bullet_speed_img = pygame.image.load('C:\\Users\\break\\OneDrive\\Home\\Programming\\Girls Who Code\\SLEEPOVER\\Space Shooter\\Images\\1.5X BULLET SPEED.png').convert_alpha()
+ship_speed_img = pygame.image.load('C:\\Users\\break\\OneDrive\\Home\\Programming\\Girls Who Code\\SLEEPOVER\\Space Shooter\\Images\\1.5X SHIP SPEED.png').convert_alpha()
+
+# button instances
+back_button = Button(140, 125, back_img, 1)
+bullet_speed_button = Button(253, 125, bullet_speed_img, 1)
+ship_speed_button = Button(366, 125, ship_speed_img, 1)
+
+
 run = True
 while run:
 
   clock.tick(fps)
-  # draw background
-  draw_bg()
-  draw_text(f'Score: {SCORE}', font30, white, 10, 10)
-  draw_text(f'High Score: {HIGHSCORE}', font30, white, 10, 30)
 
-  if COUNTDOWN == 0:
+  # calculate screen shake offset
+  current_time = pygame.time.get_ticks()
+  if current_time - shake_start < shake_duration:
+    offset_x = random.randint(-shake_intensity, shake_intensity)
+    offset_y = random.randint(-shake_intensity, shake_intensity)
+  else:
+    offset_x = 0
+    offset_y = 0
+
+  # draw background
+  draw_bg(offset_x, offset_y)
+  draw_text(f'Score: {SCORE}', font30, white, 10, 10, offset_x, offset_y)
+  draw_text(f'High Score: {HIGHSCORE}', font30, white, 10, 30, offset_x, offset_y)
+
+  if COUNTDOWN == 0 and GAME_PAUSED == False:
 
     # random alien bullets
     # record current time
@@ -323,39 +393,51 @@ while run:
     if GAMEOVER == 0:
 
       # update spaceship
-      GAMEOVER = spaceship.update()
+      GAMEOVER = spaceship.update(offset_x, offset_y)
 
       # update sprite groups
       bullet_group.update()
       alien_group.update()
       alien_bullet_group.update()
 
+
+
     else:
       if GAMEOVER == -1:
-        draw_text('YOU LOST.', font40, white, int(screen_width / 2 - 85), int(screen_height / 2 + 50))
+        draw_text('YOU LOST.', font40, white, int(screen_width / 2 - 85), int(screen_height / 2 + 50), offset_x, offset_y)
       elif GAMEOVER == 1:  
-        draw_text('YOU WON!!!', font40, white, int(screen_width / 2 - 85), int(screen_height / 2 + 50))
+        draw_text('YOU WON!!!', font40, white, int(screen_width / 2 - 85), int(screen_height / 2 + 50), offset_x, offset_y)
 
       # restart
-      draw_text('Press R to RESTART', font30, white, int(screen_width / 2 - 110), int(screen_height / 2 + 90))
+      draw_text('Press R to RESTART', font30, white, int(screen_width / 2 - 110), int(screen_height / 2 + 90), offset_x, offset_y)
 
   if COUNTDOWN > 0:
-    draw_text('GET READY!', font40, white, int(screen_width / 2 - 85), int(screen_height / 2 + 50))
-    draw_text(str(COUNTDOWN), font40, white, int(screen_width / 2 - 8), int(screen_height / 2 + 90))
+    draw_text('GET READY!', font40, white, int(screen_width / 2 - 85), int(screen_height / 2 + 50), offset_x, offset_y)
+    draw_text(str(COUNTDOWN), font40, white, int(screen_width / 2 - 8), int(screen_height / 2 + 90), offset_x, offset_y)
     count_timer = pygame.time.get_ticks()
     if count_timer - last_count > 1000:
       COUNTDOWN -= 1
       last_count = count_timer
 
-  # update explosion group
-  explosion_group.update()
+  if GAME_PAUSED == True:
+    # create shop
+    if back_button.draw(screen):
+      GAME_PAUSED = False
+    if bullet_speed_button.draw(screen):
+      pass
+    if ship_speed_button.draw(screen):
+      pass
 
-  # draw sprite groups
-  spaceship_group.draw(screen)
-  bullet_group.draw(screen)
-  alien_group.draw(screen)
-  alien_bullet_group.draw(screen)
-  explosion_group.draw(screen)
+  else:
+    # update explosion group
+    explosion_group.update()
+
+    # draw sprite groups
+    draw_sprite_group(spaceship_group, offset_x, offset_y)
+    draw_sprite_group(bullet_group, offset_x, offset_y)
+    draw_sprite_group(alien_group, offset_x, offset_y)
+    draw_sprite_group(alien_bullet_group, offset_x, offset_y)
+    draw_sprite_group(explosion_group, offset_x, offset_y)
 
   # event handlers
   for event in pygame.event.get():
@@ -365,6 +447,9 @@ while run:
       # restart when game over and player presses R
       if event.key == pygame.K_r and GAMEOVER != 0:
         reset_game()
+      # S for shop
+      if event.key == pygame.K_s:
+        GAME_PAUSED = True
 
   pygame.display.update()
 
