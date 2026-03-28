@@ -50,6 +50,7 @@ GAME_PAUSED = False
 ship_speed = 8
 ship_cooldown = 500 # milliseconds
 tokens = 0
+HEALTH = 3
 
 # Shop variables
 shop_msg_text = ""
@@ -259,7 +260,7 @@ def create_aliens():
 
 def reset_game():
   # Return everything to the original so the player can try again.  
-  global SCORE, COUNTDOWN, GAMEOVER, HIGHSCORE, last_alien_shot, alien_bullet_speed, num_alien_bullets, alien_cooldown, alien_move_speed, last_count, spaceship, spaceship_group, ship_speed, ship_cooldown, tokens
+  global SCORE, COUNTDOWN, GAMEOVER, HIGHSCORE, HEALTH, last_alien_shot, alien_bullet_speed, num_alien_bullets, alien_cooldown, alien_move_speed, last_count, spaceship, spaceship_group, ship_speed, ship_cooldown, tokens
 
   if SCORE > HIGHSCORE:
     HIGHSCORE = SCORE
@@ -267,6 +268,7 @@ def reset_game():
   SCORE = 0
   COUNTDOWN = 3
   GAMEOVER = 0
+  HEALTH = 3
   tokens = 0
   ship_speed = 8
   ship_cooldown = 500
@@ -287,7 +289,7 @@ def reset_game():
   create_aliens()
 
   # create a fresh spaceship
-  spaceship = Spaceship(int(screen_width / 2), screen_height - 100, 3)
+  spaceship = Spaceship(int(screen_width / 2), screen_height - 100, HEALTH)
   spaceship_group.empty()
   spaceship_group.add(spaceship)
 
@@ -298,10 +300,11 @@ reset_game()
 
 # Continue Game
 def continue_game():
-  global COUNTDOWN, GAMEOVER, last_alien_shot, alien_bullet_speed, num_alien_bullets, alien_cooldown, alien_move_speed, last_count, spaceship, spaceship_group
+  global COUNTDOWN, GAMEOVER, HEALTH, last_alien_shot, alien_bullet_speed, num_alien_bullets, alien_cooldown, alien_move_speed, last_count, spaceship, spaceship_group
 
   COUNTDOWN = 3
   GAMEOVER = 0
+  HEALTH = 3
   alien_bullet_speed += 2
   num_alien_bullets += 2
   alien_cooldown -= 200
@@ -319,7 +322,7 @@ def continue_game():
   create_aliens()
 
   # create a fresh spaceship
-  spaceship = Spaceship(int(screen_width / 2), screen_height - 100, 3)
+  spaceship = Spaceship(int(screen_width / 2), screen_height - 100, HEALTH)
   spaceship_group.empty()
   spaceship_group.add(spaceship)
 
@@ -356,11 +359,13 @@ class Button():
 back_img = pygame.image.load('C:\\Users\\break\\OneDrive\\Home\\Programming\\Girls Who Code\\SLEEPOVER\\Space Shooter\\Images\\BACK.png').convert_alpha()
 bullet_speed_img = pygame.image.load('C:\\Users\\break\\OneDrive\\Home\\Programming\\Girls Who Code\\SLEEPOVER\\Space Shooter\\Images\\1.5X BULLET SPEED.png').convert_alpha()
 ship_speed_img = pygame.image.load('C:\\Users\\break\\OneDrive\\Home\\Programming\\Girls Who Code\\SLEEPOVER\\Space Shooter\\Images\\1.5X SHIP SPEED.png').convert_alpha()
+health_capacity_img = pygame.image.load('C:\\Users\\break\\OneDrive\\Home\\Programming\\Girls Who Code\\SLEEPOVER\\Space Shooter\\Images\\+1 HEALTH CAPACITY.png').convert_alpha()
 
 # button instances
-back_button = Button(140, 125, back_img, 1)
-bullet_speed_button = Button(253, 125, bullet_speed_img, 1)
-ship_speed_button = Button(366, 125, ship_speed_img, 1)
+back_button = Button(125, 125, back_img, 1)
+bullet_speed_button = Button(238, 125, bullet_speed_img, 1)
+ship_speed_button = Button(351, 125, ship_speed_img, 1)
+health_capacity_button = Button(464, 125, health_capacity_img, 1)
 
 run = True
 while run:
@@ -451,6 +456,23 @@ while run:
         bought = True
       else:
         shop_msg_text = 'NOT ENOUGH TOKENS! COST: 200'
+        shop_msg_timer = pygame.time.get_ticks() + 2000
+        bought = False
+
+    if health_capacity_button.draw(screen):
+      if tokens >= 300:  
+        HEALTH += 1
+        tokens -= 300
+
+        # update spaceship
+        spaceship.health_start = HEALTH
+        spaceship.health_remaining += 1
+
+        shop_msg_text = 'UPGRADE BOUGHT!'
+        shop_msg_timer = pygame.time.get_ticks() + 2000
+        bought = True
+      else:
+        shop_msg_text = 'NOT ENOUGH TOKENS! COST: 300'
         shop_msg_timer = pygame.time.get_ticks() + 2000
         bought = False
 
